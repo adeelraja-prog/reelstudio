@@ -108,6 +108,14 @@ $('#saveBrand').onclick=()=>{localStorage.setItem('scc_brand',JSON.stringify({na
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-view]').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(b.dataset.view==='brand')$('#brandCard').scrollIntoView({behavior:'smooth'});else if(b.dataset.view==='queue')$('#queueList').scrollIntoView({behavior:'smooth'});else if(b.dataset.view==='accounts')toast('Account connection requires backend OAuth setup');else window.scrollTo({top:0,behavior:'smooth'})});
 const d=new Date(Date.now()+3600000);d.setMinutes(Math.ceil(d.getMinutes()/15)*15,0,0);$('#startAt').value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
 const brand=JSON.parse(localStorage.getItem('scc_brand')||'{}');$('#brandName').value=brand.name||'';$('#logoPosition').value=brand.position||'Bottom right';$('#logoSize').value=brand.size||'medium';render();
+
+// Register the offline app shell when served over HTTPS or localhost.
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .catch(error => console.warn("ReelStudio offline support unavailable:", error));
+  });
+}
 </script>
 </body>
 </html>
