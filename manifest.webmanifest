@@ -1,6 +1,6 @@
 {
-  "name": "Social Command Center",
-  "short_name": "Social Center",
+  "name": "ReelStudio — Adeel Raja",
+  "short_name": "ReelStudio",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b1020",
@@ -12,5 +12,6 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "description": "Adeel Raja's video preparation and social publishing workspace"
 }
