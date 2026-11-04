@@ -37,23 +37,16 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
   </header>
   <section class="stats">
     <div class="stat"><small>Videos in queue</small><strong id="statQueue">0</strong></div>
-    <div class="stat"><small>Selected channels</small><strong id="statChannels">0</strong></div>
+    <div class="stat"><small>AI clips found</small><strong id="statChannels">—</strong></div>
     <div class="stat"><small>Needs review</small><strong id="statReady">0</strong></div>
-    <div class="stat"><small>Publishing mode</small><strong style="font-size:18px;color:var(--mint)">Local demo</strong></div>
+    <div class="stat"><small>Processing</small><strong style="font-size:18px;color:var(--mint)">On device</strong></div>
   </section>
   <div class="layout">
     <section class="card">
-      <div class="cardhead"><h2>Bulk video scheduler</h2><span class="pill">Multi-select</span></div>
+      <div class="cardhead"><h2>Import source videos</h2><span class="pill">Local editing</span></div>
       <div class="drop"><div style="font-size:25px">⇧</div><strong>Choose multiple videos</strong><p>Select 10, 20 or more clips to prepare a batch.</p><input id="files" type="file" accept="video/*" multiple></div>
-      <div class="field"><label>Publish to</label><div class="targets">
-        <label class="target"><input type="checkbox" value="Facebook Page" checked> Facebook Page</label>
-        <label class="target"><input type="checkbox" value="Instagram Professional" checked> Instagram Pro</label>
-        <label class="target"><input type="checkbox" value="YouTube Channel"> YouTube</label>
-      </div></div>
-      <div class="field"><label>First publish time</label><input id="startAt" type="datetime-local"></div>
-      <div class="field"><label>Spacing between posts</label><select id="spacing"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="1440">24 hours</option></select></div>
-      <div class="field"><label>Caption / topic (optional)</label><textarea id="topic" placeholder="Add context, campaign phrase, or a short topic…"></textarea></div>
-      <div class="actions"><button class="primary" id="prepareBtn">Add videos to schedule</button><button id="clearBtn">Clear selection</button></div>
+      <div class="notice">Import your original recordings here. ReelStudio keeps them on this device, transcribes the speech, finds candidate moments and lets you export short clips. Nothing is published or uploaded.</div>
+      <div class="actions"><button class="primary" id="prepareBtn">Import videos for editing</button><button id="clearBtn">Clear selection</button></div>
       <div class="notice"><strong>Publishing is not connected yet.</strong> Your videos and schedule are saved on this device only. The app does not currently analyse video content to write captions or hashtags. That requires a video-understanding engine; filename-based guesses and generic hashtags are not a substitute. Connect official Facebook, Instagram and YouTube accounts plus a secure publishing backend before real publishing can be enabled.</div>
     </section>
     <aside class="card">
@@ -74,7 +67,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
 </main>
 </div>
 <div class="toast" id="toast" role="status"></div>
-<dialog class="dialog" id="itemDialog"><div class="cardhead"><h2 id="dialogTitle">Review video</h2><button type="button" id="closeDialog">Close</button></div><video id="previewVideo" controls playsinline></video><section class="analysis-panel"><strong>Video inspection + AI captioning</strong><div id="videoMeta" class="analysis-meta">Loading video details…</div><div id="keyframes" class="frames"></div><div class="actions" style="margin-top:10px"><button type="button" id="aiAnalyzeBtn" class="primary">Analyse video frames</button><select id="speechLanguage" aria-label="Speech language"><option value="urdu">Urdu speech</option><option value="english">English speech</option><option value="auto">Auto detect</option></select><button type="button" id="transcribeBtn">Transcribe speech</button></div><div id="transcriptWrap" class="field" style="margin-top:10px"><label>Video transcript</label><textarea id="videoTranscript" rows="4" placeholder="Transcribed speech will appear here…"></textarea></div><div class="analysis-panel"><div class="cardhead"><strong>AI clip suggestions</strong><span class="pill">25–90 sec</span></div><div id="clipCandidates" class="queue"><div class="empty">Transcribe speech to discover potential clips.</div></div><div id="clipExportStatus" class="model-progress"></div></div><div id="modelProgress" class="model-progress">Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.</div><div id="aiResult" class="ai-result"></div><div class="analysis-note">AI describes sampled frames, not every moment or spoken words. Check its suggestions before publishing.</div></section><div class="field"><label>Caption</label><textarea id="editCaption"></textarea></div><div class="field"><label>Hashtags</label><input id="editHashtags"></div><div class="field"><label>Scheduled time</label><input id="editWhen" type="datetime-local"></div><div class="field"><label>Publish destinations</label><div id="editTargets" class="targets"></div></div><div class="dialog-actions"><button id="downloadVideo">Download original</button><button class="primary" id="saveItem">Save changes</button></div></dialog>
+<dialog class="dialog" id="itemDialog"><div class="cardhead"><h2 id="dialogTitle">Review video</h2><button type="button" id="closeDialog">Close</button></div><video id="previewVideo" controls playsinline></video><section class="analysis-panel"><strong>Video inspection + AI captioning</strong><div id="videoMeta" class="analysis-meta">Loading video details…</div><div id="keyframes" class="frames"></div><div class="actions" style="margin-top:10px"><button type="button" id="aiAnalyzeBtn" class="primary">Analyse video frames</button><select id="speechLanguage" aria-label="Speech language"><option value="urdu">Urdu speech</option><option value="english">English speech</option><option value="auto">Auto detect</option></select><button type="button" id="transcribeBtn">Transcribe speech</button></div><div id="transcriptWrap" class="field" style="margin-top:10px"><label>Video transcript</label><textarea id="videoTranscript" rows="4" placeholder="Transcribed speech will appear here…"></textarea></div><div class="analysis-panel"><div class="cardhead"><strong>AI clip suggestions</strong><span class="pill">25–90 sec</span></div><div id="clipCandidates" class="queue"><div class="empty">Transcribe speech to discover potential clips.</div></div><div id="clipExportStatus" class="model-progress"></div></div><div id="modelProgress" class="model-progress">Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.</div><div id="aiResult" class="ai-result"></div><div class="analysis-note">AI describes sampled frames, not every moment or spoken words. Check its suggestions before publishing.</div></section><div class="field"><label>Caption</label><textarea id="editCaption"></textarea></div><div class="field"><label>Hashtags</label><input id="editHashtags"></div><div class="dialog-actions"><button id="downloadVideo">Download original</button><button class="primary" id="saveItem">Save changes</button></div></dialog>
 <script>
 const $=s=>document.querySelector(s);
 let selectedFiles=[], queue=JSON.parse(localStorage.getItem('scc_queue')||'[]');
@@ -115,7 +108,7 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.style.display='block
 function save(){localStorage.setItem('scc_queue',JSON.stringify(queue));render()}
 function render(){
  $('#statQueue').textContent=queue.length;$('#statReady').textContent=queue.filter(x=>x.status!=='Published').length;
- $('#statChannels').textContent=new Set(queue.flatMap(x=>x.targets||[])).size;$('#queuePill').textContent=queue.length+' items';
+ $('#statChannels').textContent='—';$('#queuePill').textContent=queue.length+' items';
  const list=$('#queueList');list.innerHTML='';
  if(!queue.length){list.innerHTML='<div class="empty">No videos yet. Select files to start.</div>';return}
  queue.forEach((x,i)=>{
@@ -265,16 +258,16 @@ async function transcribeCurrentVideo(){
   const transcriber=await getLocalTranscriber();
   const lang=$('#speechLanguage').value;
   $('#modelProgress').textContent='Transcribing speech locally. Longer videos can take a few minutes…';
-  const opts={chunk_length_s:30,stride_length_s:5,task:'transcribe',return_timestamps:'chunk'};
+  const opts={chunk_length_s:30,stride_length_s:5,task:'transcribe',return_timestamps:true};
   if(lang!=='auto')opts.language=lang;
   const result=await transcriber(resampled,opts);
   const transcript=(result?.text||'').trim();if(!transcript)throw new Error('No clear speech was detected');
   $('#videoTranscript').value=transcript;
-  renderClipSuggestions(result?.chunks||[],decoded.duration);
+  renderClipSuggestions(result?.chunks||[],decoded.duration);\n  if(!result?.chunks?.length)throw new Error('Speech was transcribed, but the model returned no timestamps for clip cutting.');
   $('#editCaption').value=transcript.length>500?transcript.slice(0,497)+'…':transcript;
   $('#editHashtags').value=makeHashtags(transcript);
   $('#aiResult').textContent='Speech transcript ready. Caption draft uses the spoken words; please correct names, numbers and Urdu spellings before publishing.';
-  $('#modelProgress').textContent='Speech transcription complete. Audio was processed in this browser.';
+  $('#modelProgress').textContent='Speech transcription complete. Audio was processed in this browser; timestamped segments are ready for clip suggestions.';
  }catch(error){
   console.error(error);$('#modelProgress').textContent='Transcription could not complete: '+(error.message||error)+'. Some video codecs may not support browser audio decoding.';
  }finally{if(audioContext)try{await audioContext.close()}catch(e){}btn.disabled=false}
@@ -284,9 +277,7 @@ $('#aiAnalyzeBtn').addEventListener('click',analyzeCurrentVideo);
 async function openItem(index){
  const item=queue[index];if(!item)return;editingIndex=index;
  $('#dialogTitle').textContent=item.name;$('#editCaption').value=item.caption||'';
- $('#editHashtags').value=item.hashtags||'';$('#editWhen').value=toLocalInput(item.when);
- const targetWrap=$('#editTargets');targetWrap.innerHTML='';
- ['Facebook Page','Instagram Professional','YouTube Channel'].forEach(t=>{const label=document.createElement('label');label.className='target';const cb=document.createElement('input');cb.type='checkbox';cb.value=t;cb.checked=(item.targets||[]).includes(t);label.append(cb,document.createTextNode(t));targetWrap.append(label)});
+ $('#editHashtags').value=item.hashtags||'';
  const video=$('#previewVideo');video.pause();video.removeAttribute('src');if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;
  try{const asset=await getVideoAsset(item.assetId);if(asset?.blob){previewUrl=URL.createObjectURL(asset.blob);video.src=previewUrl;$('#downloadVideo').disabled=false;inspectVideo(video)}else{$('#downloadVideo').disabled=true;toast('Original video is missing from this browser storage')}}
  catch(e){console.warn(e);$('#downloadVideo').disabled=true;toast('Could not load this video from local storage')}
@@ -299,24 +290,20 @@ $('#files').addEventListener('change',e=>{selectedFiles=[...e.target.files];toas
 $('#addBtn').onclick=()=>$('#files').click();
 $('#prepareBtn').onclick=async()=>{
  if(!selectedFiles.length){toast('Choose one or more video files first');return}
- const targets=[...document.querySelectorAll('.target input:checked')].map(x=>x.value);
- if(!targets.length){toast('Select at least one channel');return}
- const start=$('#startAt').value?new Date($('#startAt').value):new Date(Date.now()+3600000);
- if(Number.isNaN(start.getTime())||start.getTime()<Date.now()){toast('Choose a future start time');return}
- const spacing=Number($('#spacing').value), topic=$('#topic').value.trim();
+ const start=new Date();
  const button=$('#prepareBtn');button.disabled=true;button.textContent='Saving video files…';
  try{
   for(let i=0;i<selectedFiles.length;i++){
    const f=selectedFiles[i],assetId=await saveVideoAsset(f);
-   queue.push({id:crypto.randomUUID(),assetId,name:f.name,size:f.size,mimeType:f.type,when:new Date(start.getTime()+i*spacing*60000).toISOString(),targets,caption:topic,hashtags:'',keywords:'',status:'Needs review'});
+   queue.push({id:crypto.randomUUID(),assetId,name:f.name,size:f.size,mimeType:f.type,when:new Date(start.getTime()).toISOString(),targets:[],caption:'',hashtags:'',keywords:'',status:'Ready for AI review'});
   }
-  selectedFiles=[];$('#files').value='';save();toast('Videos saved. Review captions and hashtags before publishing.');
+  selectedFiles=[];$('#files').value='';save();toast('Videos imported. Open one to analyse and find clips.');
  }catch(error){console.error(error);toast('Could not save video files. Check device storage.')}
- finally{button.disabled=false;button.textContent='Add videos to schedule'}
+ finally{button.disabled=false;button.textContent='Import videos for editing'}
 };
 $('#clearBtn').onclick=()=>{selectedFiles=[];$('#files').value='';toast('Selection cleared')};
 $('#closeDialog').onclick=()=>$('#itemDialog').close();
-$('#saveItem').onclick=()=>{if(editingIndex<0)return;const targets=[...$('#editTargets').querySelectorAll('input:checked')].map(x=>x.value);if(!targets.length){toast('Select at least one destination');return}const when=new Date($('#editWhen').value);if(Number.isNaN(when.getTime())){toast('Choose a valid schedule time');return}const item=queue[editingIndex];item.caption=$('#editCaption').value.trim();item.hashtags=$('#editHashtags').value.trim();item.when=when.toISOString();item.targets=targets;save();$('#itemDialog').close();toast('Queue item updated')};
+$('#saveItem').onclick=()=>{if(editingIndex<0)return;const item=queue[editingIndex];item.caption=$('#editCaption').value.trim();item.hashtags=$('#editHashtags').value.trim();save();$('#itemDialog').close();toast('Notes saved locally')};
 $('#downloadVideo').onclick=async()=>{if(editingIndex<0)return;const asset=await getVideoAsset(queue[editingIndex].assetId);if(!asset?.blob){toast('Original video not found');return}const url=URL.createObjectURL(asset.blob),a=document.createElement('a');a.href=url;a.download=asset.name||queue[editingIndex].name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
 $('#itemDialog').addEventListener('close',()=>{const v=$('#previewVideo');v.pause();v.removeAttribute('src');if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;editingIndex=-1});
 $('#resetBtn').onclick=()=>{if(confirm('Remove all queued items?')){queue=[];save();toast('Queue reset')}};
