@@ -45,7 +45,7 @@
   }
 
   function supportedMime() {
-    const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+    const types = ['video/mp4', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
     return types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
   }
 
@@ -73,10 +73,19 @@
       canvas.height = Math.max(2, Math.round(video.videoHeight * scale));
       const ctx = canvas.getContext('2d');
       const stream = canvas.captureStream(30);
-      let audioStream;
-      if (video.captureStream) {
-        audioStream = video.captureStream();
-        audioStream.getAudioTracks().forEach(t => stream.addTrack(t));
+      let audioContext, audioDestination;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          audioContext = new AudioCtx();
+          const source = audioContext.createMediaElementSource(video);
+          audioDestination = audioContext.createMediaStreamDestination();
+          source.connect(audioDestination);
+          source.connect(audioContext.destination);
+          audioDestination.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+        }
+      } catch (audioError) {
+        console.warn('Audio capture unavailable; exporting video-only clip', audioError);
       }
       const recorder = new MediaRecorder(stream, { mimeType });
       const parts = [];
@@ -115,7 +124,8 @@
       await video.play();
       draw();
       await stopped;
-      if (audioStream) audioStream.getTracks().forEach(t => t.stop());
+      if (audioDestination) audioDestination.stream.getTracks().forEach(t => t.stop());
+      if (audioContext) await audioContext.close();
       stream.getTracks().forEach(t => t.stop());
       onProgress(100);
       return new Blob(parts, { type: mimeType });
