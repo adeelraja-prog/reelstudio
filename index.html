@@ -167,7 +167,7 @@ function renderClipSuggestions(chunks,duration){
   info.append(title,meta);
   const actions=document.createElement('div');actions.className='item-actions';
   const preview=document.createElement('button');preview.textContent='Preview';preview.onclick=()=>{const v=$('#previewVideo');v.currentTime=clip.start;v.play();v.ontimeupdate=()=>{if(v.currentTime>=clip.end){v.pause();v.ontimeupdate=null}}};
-  const save=document.createElement('button');save.textContent='Export MP4/WebM';save.onclick=()=>exportSuggestedClip(i);
+  const save=document.createElement('button');save.textContent='Export clip';save.onclick=()=>exportSuggestedClip(i);
   actions.append(preview,save);el.append(thumb,info,actions);host.append(el);
  });
 }
