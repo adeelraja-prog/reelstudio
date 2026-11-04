@@ -1,4 +1,4 @@
-# Social Command Center — PWA starter
+# ReelStudio — Adeel Raja
 
 A single-brand, local-first social publishing dashboard scaffold.
 
@@ -7,7 +7,7 @@ A single-brand, local-first social publishing dashboard scaffold.
 - Local queue and draft persistence (IndexedDB/localStorage fallback via browser localStorage)
 - Multi-select video files, account targets, per-item schedule slots
 - Local-only caption/hashtag/keyword drafting (template-based; no paid AI API)
-- Watermark settings and publishing status UI
+- Brand kit with locally saved logo, position and size settings\n- Queue editor: preview original video, edit caption/hashtags/destinations/time, reorder and remove items\n- Local video files are stored in IndexedDB; queue metadata is stored in this browser
 - GitHub Actions example for scheduled worker heartbeat
 
 ## Important platform limits
@@ -16,9 +16,9 @@ A single-brand, local-first social publishing dashboard scaffold.
 - Facebook personal-profile publishing is not generally available through the official publishing API. This starter targets Facebook Pages, Instagram Professional accounts, and authorized YouTube channels.
 - This scaffold does not pretend to publish. Until provider adapters and credentials are configured, items stay in the local queue.
 
-## Run locally
+## Current app behavior\n- The queue is device-local; it does not sync between devices yet. Clearing browser site data can remove locally saved media.\n- Queue editing and original-video preview work locally in the browser. The brand logo is saved locally but is not yet burned into exported videos.\n- The Accounts screen is not an active OAuth connection flow yet. No social post is published by this version.\n\n## Run locally
 Open `index.html` in a browser for a UI demo. For installable PWA behavior, serve over HTTPS or localhost.
-For a production backend, add a server-side OAuth/token vault, database, object storage, and provider adapters. Never place client secrets or refresh tokens in frontend code.
+The repository includes `supabase/config.toml` and a database migration under `supabase/migrations/`. A linked Supabase GitHub integration can use the repository migrations, but the live project still needs to be linked/deployed and its auth redirect settings configured. For production, add a server-side OAuth/token vault, private object storage, and provider adapters. Never place client secrets or refresh tokens in frontend code.
 
 ## Zero-cost target
 GitHub Pages can host the static PWA at no cost, but static hosting cannot securely store OAuth tokens or run durable publishing jobs. A backend/worker on a free tier is needed; free quotas and availability can change.
