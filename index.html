@@ -240,37 +240,87 @@ async function getLocalTranscriber(){
  })().catch(e=>{transcriberPromise=null;throw e});
  return transcriberPromise;
 }
+async function extractAudioFromPlayableVideo(blob){
+ const url=URL.createObjectURL(blob);
+ const video=document.createElement('video');
+ video.preload='auto';video.playsInline=true;video.muted=false;video.src=url;
+ let ctx,source,processor;
+ try{
+  await new Promise((resolve,reject)=>{
+   video.onloadedmetadata=resolve;
+   video.onerror=()=>reject(new Error('Safari could not open the video audio track. Try exporting the recording as H.264 video with AAC audio.'));
+  });
+  const duration=video.duration;
+  if(!Number.isFinite(duration)||duration<=0)throw new Error('Video duration could not be read.');
+  if(duration>900)throw new Error('Local transcription is currently limited to 15 minutes per video.');
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  if(!AudioCtx)throw new Error('This browser does not provide Web Audio support.');
+  ctx=new AudioCtx();
+  if(ctx.state==='suspended')await ctx.resume();
+  source=ctx.createMediaElementSource(video);
+  processor=ctx.createScriptProcessor(4096,2,1);
+  const buffers=[];
+  let captured=0;
+  processor.onaudioprocess=e=>{
+   const input=e.inputBuffer;
+   const n=input.length;
+   const mono=new Float32Array(n);
+   const channels=input.numberOfChannels;
+   for(let ch=0;ch<channels;ch++){
+    const data=input.getChannelData(ch);
+    for(let i=0;i<n;i++)mono[i]+=data[i]/channels;
+   }
+   buffers.push(mono);captured+=n;
+   $('#modelProgress').textContent='Extracting audio through browser video playback… '+Math.min(99,Math.round(video.currentTime/duration*100))+'%';
+  };
+  source.connect(processor);processor.connect(ctx.destination);
+  await new Promise(async(resolve,reject)=>{
+   video.onended=resolve;
+   video.onerror=()=>reject(new Error('Video playback stopped while extracting audio.'));
+   try{await video.play()}catch(e){reject(new Error('Could not start local video playback for audio extraction: '+e.message))}
+  });
+  processor.disconnect();source.disconnect();
+  if(!buffers.length)throw new Error('No audio was detected. Check that the video contains an audible audio track.');
+  const joined=new Float32Array(captured);let offset=0;
+  for(const b of buffers){joined.set(b,offset);offset+=b.length}
+  const target=16000,ratio=ctx.sampleRate/target,length=Math.floor(joined.length/ratio),resampled=new Float32Array(length);
+  for(let i=0;i<length;i++){
+   const pos=i*ratio,left=Math.floor(pos),frac=pos-left;
+   resampled[i]=joined[left]*(1-frac)+(joined[Math.min(left+1,joined.length-1)]||0)*frac;
+  }
+  return {audio:resampled,duration};
+ }finally{
+  try{if(processor)processor.disconnect();if(source)source.disconnect();if(ctx)await ctx.close()}catch(e){}
+  video.pause();video.removeAttribute('src');URL.revokeObjectURL(url);
+ }
+}
 async function transcribeCurrentVideo(){
  const btn=$('#transcribeBtn');if(editingIndex<0)return;
  btn.disabled=true;
- let audioContext;
  try{
-  const asset=await getVideoAsset(queue[editingIndex].assetId);if(!asset?.blob)throw new Error('Original video is missing from this browser');
-  $('#modelProgress').textContent='Reading audio track from your video…';
-  audioContext=new (window.AudioContext||window.webkitAudioContext)();
-  const decoded=await audioContext.decodeAudioData(await asset.blob.arrayBuffer());
-  if(decoded.duration>900)throw new Error('For safety, local transcription is limited to 15 minutes per video');
-  const channels=decoded.numberOfChannels,samples=decoded.length,mono=new Float32Array(samples);
-  for(let ch=0;ch<channels;ch++){const data=decoded.getChannelData(ch);for(let i=0;i<samples;i++)mono[i]+=data[i]/channels}
-  const targetRate=16000,ratio=decoded.sampleRate/targetRate,outLength=Math.floor(samples/ratio),resampled=new Float32Array(outLength);
-  for(let i=0;i<outLength;i++){const pos=i*ratio,left=Math.floor(pos),frac=pos-left;resampled[i]=mono[left]*(1-frac)+(mono[Math.min(left+1,samples-1)]||0)*frac}
-  await audioContext.close();audioContext=null;
+  const asset=await getVideoAsset(queue[editingIndex].assetId);
+  if(!asset?.blob)throw new Error('Original video is missing from this browser.');
+  $('#modelProgress').textContent='Opening your video to extract its audio locally…';
+  const extracted=await extractAudioFromPlayableVideo(asset.blob);
   const transcriber=await getLocalTranscriber();
   const lang=$('#speechLanguage').value;
-  $('#modelProgress').textContent='Transcribing speech locally. Longer videos can take a few minutes…';
+  $('#modelProgress').textContent='Transcribing speech locally. This may take a few minutes…';
   const opts={chunk_length_s:30,stride_length_s:5,task:'transcribe',return_timestamps:true};
   if(lang!=='auto')opts.language=lang;
-  const result=await transcriber(resampled,opts);
-  const transcript=(result?.text||'').trim();if(!transcript)throw new Error('No clear speech was detected');
+  const result=await transcriber(extracted.audio,opts);
+  const transcript=(result?.text||'').trim();
+  if(!transcript)throw new Error('No clear speech was detected. Check audio volume and selected language.');
   $('#videoTranscript').value=transcript;
-  renderClipSuggestions(result?.chunks||[],decoded.duration);\n  if(!result?.chunks?.length)throw new Error('Speech was transcribed, but the model returned no timestamps for clip cutting.');
+  renderClipSuggestions(result?.chunks||[],extracted.duration);
+  if(!result?.chunks?.length)throw new Error('Transcript created, but Whisper did not return timestamped segments for clip suggestions.');
   $('#editCaption').value=transcript.length>500?transcript.slice(0,497)+'…':transcript;
   $('#editHashtags').value=makeHashtags(transcript);
-  $('#aiResult').textContent='Speech transcript ready. Caption draft uses the spoken words; please correct names, numbers and Urdu spellings before publishing.';
-  $('#modelProgress').textContent='Speech transcription complete. Audio was processed in this browser; timestamped segments are ready for clip suggestions.';
+  $('#aiResult').textContent='Transcript ready. Please check Urdu names, spellings and numbers.';
+  $('#modelProgress').textContent='Transcription complete. Audio was extracted from browser video playback and processed locally.';
  }catch(error){
-  console.error(error);$('#modelProgress').textContent='Transcription could not complete: '+(error.message||error)+'. Some video codecs may not support browser audio decoding.';
- }finally{if(audioContext)try{await audioContext.close()}catch(e){}btn.disabled=false}
+  console.error(error);
+  $('#modelProgress').textContent='Transcription failed: '+(error.message||error);
+ }finally{btn.disabled=false}
 }
 $('#transcribeBtn').addEventListener('click',transcribeCurrentVideo);
 $('#aiAnalyzeBtn').addEventListener('click',analyzeCurrentVideo);
