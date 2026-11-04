@@ -1,4 +1,4 @@
-const CACHE_NAME = "social-command-center-v1";
+const CACHE_NAME = "reelstudio-v2";
 const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
