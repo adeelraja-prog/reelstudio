@@ -37,7 +37,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
   <section class="stats">
     <div class="stat"><small>Videos in queue</small><strong id="statQueue">0</strong></div>
     <div class="stat"><small>Selected channels</small><strong id="statChannels">0</strong></div>
-    <div class="stat"><small>Ready to review</small><strong id="statReady">0</strong></div>
+    <div class="stat"><small>Needs review</small><strong id="statReady">0</strong></div>
     <div class="stat"><small>Publishing mode</small><strong style="font-size:18px;color:var(--mint)">Local demo</strong></div>
   </section>
   <div class="layout">
@@ -52,11 +52,11 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
       <div class="field"><label>First publish time</label><input id="startAt" type="datetime-local"></div>
       <div class="field"><label>Spacing between posts</label><select id="spacing"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="120">2 hours</option><option value="240">4 hours</option><option value="1440">24 hours</option></select></div>
       <div class="field"><label>Caption / topic (optional)</label><textarea id="topic" placeholder="Add context, campaign phrase, or a short topic…"></textarea></div>
-      <div class="actions"><button class="primary" id="prepareBtn">Generate local captions & schedule</button><button id="clearBtn">Clear selection</button></div>
-      <div class="notice">Demo safeguard: this interface prepares a queue locally. It will not publish to social platforms until secure OAuth and official provider adapters are configured on a backend.</div>
+      <div class="actions"><button class="primary" id="prepareBtn">Add videos to schedule</button><button id="clearBtn">Clear selection</button></div>
+      <div class="notice"><strong>Publishing is not connected yet.</strong> Your videos and schedule are saved on this device only. The app does not currently analyse video content to write captions or hashtags. That requires a video-understanding engine; filename-based guesses and generic hashtags are not a substitute. Connect official Facebook, Instagram and YouTube accounts plus a secure publishing backend before real publishing can be enabled.</div>
     </section>
     <aside class="card">
-      <div class="cardhead"><h2>Queue preview</h2><span class="pill" id="queuePill">0 items</span></div>
+      <div class="cardhead"><h2>Queue preview</h2><span class="pill" id="queuePill">0 items</span></div><div class="actions" style="margin:0 0 12px"><button id="publishBtn" disabled title="Real publishing is not connected yet">Publish now · Not connected</button></div>
       <div class="queue" id="queueList"><div class="empty">No videos yet. Select files to start.</div></div>
       <div class="actions" style="margin-top:14px"><button id="resetBtn">Reset queue</button></div>
     </aside>
@@ -111,7 +111,7 @@ const fmt=d=>new Date(d).toLocaleString([], {month:'short',day:'numeric',hour:'n
 function toast(msg){const t=$('#toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2300)}
 function save(){localStorage.setItem('scc_queue',JSON.stringify(queue));render()}
 function render(){
- $('#statQueue').textContent=queue.length;$('#statReady').textContent=queue.filter(x=>x.status==='Ready').length;
+ $('#statQueue').textContent=queue.length;$('#statReady').textContent=queue.filter(x=>x.status==='Needs review').length;
  $('#statChannels').textContent=new Set(queue.flatMap(x=>x.targets||[])).size;$('#queuePill').textContent=queue.length+' items';
  const list=$('#queueList');list.innerHTML='';
  if(!queue.length){list.innerHTML='<div class="empty">No videos yet. Select files to start.</div>';return}
@@ -122,7 +122,7 @@ function render(){
   name.textContent=x.name;meta.textContent=fmt(x.when)+' · '+(x.targets||[]).join(', ');
   info.append(name,meta);
   const actions=document.createElement('div');actions.className='item-actions';
-  const status=document.createElement('span');status.className='status';status.textContent=x.status||'Ready';
+  const status=document.createElement('span');status.className='status';status.textContent=x.status||'Needs review';
   const makeButton=(label,title,fn,cls='')=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;if(cls)b.className=cls;b.onclick=fn;return b};
   actions.append(status,makeButton('Preview','Preview or edit this video',()=>openItem(i)),makeButton('↑','Move earlier',()=>moveItem(i,-1)),makeButton('↓','Move later',()=>moveItem(i,1)),makeButton('×','Remove from queue',()=>removeItem(i),'danger'));
   el.append(thumb,info,actions);list.append(el);
@@ -158,12 +158,12 @@ $('#prepareBtn').onclick=async()=>{
   for(let i=0;i<selectedFiles.length;i++){
    const f=selectedFiles[i],assetId=await saveVideoAsset(f);
    const name=f.name.replace(/\.[^.]+$/,'');const title=name.replace(/[_-]+/g,' ').trim();
-   const caption=topic?topic+' — '+title:title;
-   queue.push({id:crypto.randomUUID(),assetId,name:f.name,size:f.size,mimeType:f.type,when:new Date(start.getTime()+i*spacing*60000).toISOString(),targets,caption,hashtags:'#reels #video #'+title.toLowerCase().replace(/[^a-z0-9]+/g,''),keywords:title,status:'Ready'});
+   const caption=topic?topic+' — '+title:'';
+   queue.push({id:crypto.randomUUID(),assetId,name:f.name,size:f.size,mimeType:f.type,when:new Date(start.getTime()+i*spacing*60000).toISOString(),targets,caption,hashtags:'',keywords:title,status:'Needs review'});
   }
-  selectedFiles=[];$('#files').value='';save();toast('Videos and schedule saved on this device');
+  selectedFiles=[];$('#files').value='';save();toast('Videos saved. Review captions and hashtags before publishing.');
  }catch(error){console.error(error);toast('Could not save video files. Check device storage.')}
- finally{button.disabled=false;button.textContent='Generate local captions & schedule'}
+ finally{button.disabled=false;button.textContent='Add videos to schedule'}
 };
 $('#clearBtn').onclick=()=>{selectedFiles=[];$('#files').value='';toast('Selection cleared')};
 $('#closeDialog').onclick=()=>$('#itemDialog').close();
