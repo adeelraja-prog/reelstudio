@@ -24,7 +24,7 @@ A single-brand, local-first social publishing dashboard scaffold.
 - The Accounts screen is not an active OAuth connection flow yet. No social post is published by this version.
 
 ## Run locally
-Open `index.html` in a browser for a UI demo. For installable PWA behavior, serve over HTTPS or localhost. GitHub Pages deployment is configured in `.github/workflows/deploy-pages.yml`; the repository owner may need to enable **Settings → Pages → Build and deployment → GitHub Actions** once.
+Open `index.html` in a browser for a UI demo. For installable PWA behavior, serve over HTTPS or localhost. GitHub Pages deployment is configured in `.github/workflows/deploy-pages.yml`. One-time owner action required: open **Settings → Pages → Build and deployment**, choose **GitHub Actions** as the source, and save. The GitHub Actions integration used here cannot create the Pages site automatically; the deployment workflow will then publish each push to `main`.
 The repository includes `supabase/config.toml` and a database migration under `supabase/migrations/`. A linked Supabase GitHub integration can use the repository migrations, but the live project still needs to be linked/deployed and its auth redirect settings configured. For production, add a server-side OAuth/token vault, private object storage, and provider adapters. Never place client secrets or refresh tokens in frontend code.
 
 ## Zero-cost target
