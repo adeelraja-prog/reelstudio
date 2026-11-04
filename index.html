@@ -76,6 +76,36 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
 <script>
 const $=s=>document.querySelector(s);
 let selectedFiles=[], queue=JSON.parse(localStorage.getItem('scc_queue')||'[]');
+
+// Keep the actual video files in IndexedDB so the queue survives a page refresh.
+const DB_NAME='reelstudio-local', DB_VERSION=1, STORE='video-assets';
+function openAssetDB(){
+ return new Promise((resolve,reject)=>{
+  const request=indexedDB.open(DB_NAME,DB_VERSION);
+  request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'});};
+  request.onsuccess=()=>resolve(request.result);
+  request.onerror=()=>reject(request.error);
+ });
+}
+async function saveVideoAsset(file){
+ const db=await openAssetDB();
+ const id=crypto.randomUUID();
+ await new Promise((resolve,reject)=>{
+  const tx=db.transaction(STORE,'readwrite');
+  tx.objectStore(STORE).put({id,name:file.name,type:file.type,size:file.size,blob:file,createdAt:new Date().toISOString()});
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+ });
+ db.close();
+ return id;
+}
+async function getVideoAsset(id){
+ const db=await openAssetDB();
+ const value=await new Promise((resolve,reject)=>{
+  const tx=db.transaction(STORE,'readonly'),request=tx.objectStore(STORE).get(id);
+  request.onsuccess=()=>resolve(request.result||null);request.onerror=()=>reject(request.error);
+ });
+ db.close();return value;
+}
 const fmt=d=>new Date(d).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 function toast(msg){const t=$('#toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',2300)}
 function save(){localStorage.setItem('scc_queue',JSON.stringify(queue));render()}
@@ -88,18 +118,24 @@ function render(){
 }
 $('#files').addEventListener('change',e=>{selectedFiles=[...e.target.files];toast(selectedFiles.length+' videos selected')});
 $('#addBtn').onclick=()=>$('#files').click();
-$('#prepareBtn').onclick=()=>{
+$('#prepareBtn').onclick=async()=>{
  if(!selectedFiles.length){toast('Choose one or more video files first');return}
  const targets=[...document.querySelectorAll('.target input:checked')].map(x=>x.value);
  if(!targets.length){toast('Select at least one channel');return}
  const start=$('#startAt').value?new Date($('#startAt').value):new Date(Date.now()+3600000);
+ if(Number.isNaN(start.getTime())||start.getTime()<Date.now()){toast('Choose a future start time');return}
  const spacing=Number($('#spacing').value), topic=$('#topic').value.trim();
- selectedFiles.forEach((f,i)=>{
-  const name=f.name.replace(/\.[^.]+$/,'');const title=name.replace(/[_-]+/g,' ').trim();
-  const caption=topic?topic+' — '+title:title;
-  queue.push({id:crypto.randomUUID(),name:f.name,when:new Date(start.getTime()+i*spacing*60000).toISOString(),targets,caption,hashtags:'#reels #video #'+title.toLowerCase().replace(/[^a-z0-9]+/g,''),keywords:title,status:'Ready'});
- });
- selectedFiles=[];$('#files').value='';save();toast('Queue prepared locally')
+ const button=$('#prepareBtn');button.disabled=true;button.textContent='Saving video files…';
+ try{
+  for(let i=0;i<selectedFiles.length;i++){
+   const f=selectedFiles[i],assetId=await saveVideoAsset(f);
+   const name=f.name.replace(/\.[^.]+$/,'');const title=name.replace(/[_-]+/g,' ').trim();
+   const caption=topic?topic+' — '+title:title;
+   queue.push({id:crypto.randomUUID(),assetId,name:f.name,size:f.size,mimeType:f.type,when:new Date(start.getTime()+i*spacing*60000).toISOString(),targets,caption,hashtags:'#reels #video #'+title.toLowerCase().replace(/[^a-z0-9]+/g,''),keywords:title,status:'Ready'});
+  }
+  selectedFiles=[];$('#files').value='';save();toast('Videos and schedule saved on this device');
+ }catch(error){console.error(error);toast('Could not save video files. Check device storage.')}
+ finally{button.disabled=false;button.textContent='Generate local captions & schedule'}
 };
 $('#clearBtn').onclick=()=>{selectedFiles=[];$('#files').value='';toast('Selection cleared')};
 $('#resetBtn').onclick=()=>{if(confirm('Remove all queued items?')){queue=[];save();toast('Queue reset')}};
