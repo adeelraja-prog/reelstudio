@@ -108,8 +108,9 @@
           finished = true; cancelAnimationFrame(raf); video.pause(); recorder.stop();
         } else raf = requestAnimationFrame(draw);
       };
+      const seeked = wait('seeked');
       video.currentTime = start;
-      await wait('seeked');
+      await seeked;
       recorder.start(250);
       await video.play();
       draw();
