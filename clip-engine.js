@@ -121,6 +121,7 @@
       video.currentTime = start;
       await seeked;
       recorder.start(250);
+      if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
       await video.play();
       draw();
       await stopped;
