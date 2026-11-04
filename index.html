@@ -73,12 +73,12 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
 </main>
 </div>
 <div class="toast" id="toast" role="status"></div>
-<dialog class="dialog" id="itemDialog"><div class="cardhead"><h2 id="dialogTitle">Review video</h2><button type="button" id="closeDialog">Close</button></div><video id="previewVideo" controls playsinline></video><section class="analysis-panel"><strong>Video inspection + AI captioning</strong><div id="videoMeta" class="analysis-meta">Loading video details…</div><div id="keyframes" class="frames"></div><div class="actions" style="margin-top:10px"><button type="button" id="aiAnalyzeBtn" class="primary">Analyse video & draft caption</button></div><div id="modelProgress" class="model-progress">Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.</div><div id="aiResult" class="ai-result"></div><div class="analysis-note">AI describes sampled frames, not every moment or spoken words. Check its suggestions before publishing.</div></section><div class="field"><label>Caption</label><textarea id="editCaption"></textarea></div><div class="field"><label>Hashtags</label><input id="editHashtags"></div><div class="field"><label>Scheduled time</label><input id="editWhen" type="datetime-local"></div><div class="field"><label>Publish destinations</label><div id="editTargets" class="targets"></div></div><div class="dialog-actions"><button id="downloadVideo">Download original</button><button class="primary" id="saveItem">Save changes</button></div></dialog>
+<dialog class="dialog" id="itemDialog"><div class="cardhead"><h2 id="dialogTitle">Review video</h2><button type="button" id="closeDialog">Close</button></div><video id="previewVideo" controls playsinline></video><section class="analysis-panel"><strong>Video inspection + AI captioning</strong><div id="videoMeta" class="analysis-meta">Loading video details…</div><div id="keyframes" class="frames"></div><div class="actions" style="margin-top:10px"><button type="button" id="aiAnalyzeBtn" class="primary">Analyse video frames</button><select id="speechLanguage" aria-label="Speech language"><option value="urdu">Urdu speech</option><option value="english">English speech</option><option value="auto">Auto detect</option></select><button type="button" id="transcribeBtn">Transcribe speech</button></div><div id="transcriptWrap" class="field" style="margin-top:10px"><label>Video transcript</label><textarea id="videoTranscript" rows="4" placeholder="Transcribed speech will appear here…"></textarea></div><div id="modelProgress" class="model-progress">Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.</div><div id="aiResult" class="ai-result"></div><div class="analysis-note">AI describes sampled frames, not every moment or spoken words. Check its suggestions before publishing.</div></section><div class="field"><label>Caption</label><textarea id="editCaption"></textarea></div><div class="field"><label>Hashtags</label><input id="editHashtags"></div><div class="field"><label>Scheduled time</label><input id="editWhen" type="datetime-local"></div><div class="field"><label>Publish destinations</label><div id="editTargets" class="targets"></div></div><div class="dialog-actions"><button id="downloadVideo">Download original</button><button class="primary" id="saveItem">Save changes</button></div></dialog>
 <script>
 const $=s=>document.querySelector(s);
 let selectedFiles=[], queue=JSON.parse(localStorage.getItem('scc_queue')||'[]');
 let sampledFrameCanvases=[];
-let localCaptioner=null, captionerPromise=null;
+let localCaptioner=null, captionerPromise=null, localTranscriber=null, transcriberPromise=null;
 
 // Keep the actual video files in IndexedDB so the queue survives a page refresh.
 const DB_NAME='reelstudio-local', DB_VERSION=1, STORE='video-assets';
@@ -133,7 +133,7 @@ function render(){
 let editingIndex=-1, previewUrl=null, brandLogoUrl=null;
 function toLocalInput(iso){const d=new Date(iso);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 function inspectVideo(video){
- const meta=$('#videoMeta'),frames=$('#keyframes');frames.innerHTML='';sampledFrameCanvases=[];$('#aiResult').textContent='';$('#modelProgress').textContent='Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.';meta.textContent='Reading video metadata…';
+ const meta=$('#videoMeta'),frames=$('#keyframes');frames.innerHTML='';sampledFrameCanvases=[];$('#aiResult').textContent='';$('#videoTranscript').value='';$('#modelProgress').textContent='Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.';meta.textContent='Reading video metadata…';
  const draw=async()=>{
   const duration=video.duration||0,w=video.videoWidth,h=video.videoHeight;
   meta.textContent=`${duration.toFixed(1)} sec · ${w} × ${h} · ${w&&h?(w/h>1.15?'Landscape':w/h<0.85?'Portrait':'Square'):''}`;
@@ -194,6 +194,53 @@ async function analyzeCurrentVideo(){
   console.error(error);$('#modelProgress').textContent='AI analysis could not start: '+(error.message||error)+'. Check your internet connection and reload.';
  }finally{btn.disabled=false}
 }
+async function getLocalTranscriber(){
+ if(localTranscriber)return localTranscriber;
+ if(transcriberPromise)return transcriberPromise;
+ transcriberPromise=(async()=>{
+  $('#modelProgress').textContent='Loading multilingual Whisper speech model…';
+  const {pipeline,env}=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2');
+  env.allowLocalModels=false;env.useBrowserCache=true;
+  localTranscriber=await pipeline('automatic-speech-recognition','Xenova/whisper-tiny',{progress_callback:p=>{
+   if(p.status==='progress'&&p.total)$('#modelProgress').textContent='Downloading speech model: '+Math.round(p.loaded/p.total*100)+'%';
+   else if(p.status==='initiate')$('#modelProgress').textContent='Preparing speech model files…';
+  }});
+  return localTranscriber;
+ })().catch(e=>{transcriberPromise=null;throw e});
+ return transcriberPromise;
+}
+async function transcribeCurrentVideo(){
+ const btn=$('#transcribeBtn');if(editingIndex<0)return;
+ btn.disabled=true;
+ let audioContext;
+ try{
+  const asset=await getVideoAsset(queue[editingIndex].assetId);if(!asset?.blob)throw new Error('Original video is missing from this browser');
+  $('#modelProgress').textContent='Reading audio track from your video…';
+  audioContext=new (window.AudioContext||window.webkitAudioContext)();
+  const decoded=await audioContext.decodeAudioData(await asset.blob.arrayBuffer());
+  if(decoded.duration>900)throw new Error('For safety, local transcription is limited to 15 minutes per video');
+  const channels=decoded.numberOfChannels,samples=decoded.length,mono=new Float32Array(samples);
+  for(let ch=0;ch<channels;ch++){const data=decoded.getChannelData(ch);for(let i=0;i<samples;i++)mono[i]+=data[i]/channels}
+  const targetRate=16000,ratio=decoded.sampleRate/targetRate,outLength=Math.floor(samples/ratio),resampled=new Float32Array(outLength);
+  for(let i=0;i<outLength;i++){const pos=i*ratio,left=Math.floor(pos),frac=pos-left;resampled[i]=mono[left]*(1-frac)+(mono[Math.min(left+1,samples-1)]||0)*frac}
+  await audioContext.close();audioContext=null;
+  const transcriber=await getLocalTranscriber();
+  const lang=$('#speechLanguage').value;
+  $('#modelProgress').textContent='Transcribing speech locally. Longer videos can take a few minutes…';
+  const opts={chunk_length_s:30,stride_length_s:5,task:'transcribe'};
+  if(lang!=='auto')opts.language=lang;
+  const result=await transcriber(resampled,opts);
+  const transcript=(result?.text||'').trim();if(!transcript)throw new Error('No clear speech was detected');
+  $('#videoTranscript').value=transcript;
+  $('#editCaption').value=transcript.length>500?transcript.slice(0,497)+'…':transcript;
+  $('#editHashtags').value=makeHashtags(transcript);
+  $('#aiResult').textContent='Speech transcript ready. Caption draft uses the spoken words; please correct names, numbers and Urdu spellings before publishing.';
+  $('#modelProgress').textContent='Speech transcription complete. Audio was processed in this browser.';
+ }catch(error){
+  console.error(error);$('#modelProgress').textContent='Transcription could not complete: '+(error.message||error)+'. Some video codecs may not support browser audio decoding.';
+ }finally{if(audioContext)try{await audioContext.close()}catch(e){}btn.disabled=false}
+}
+$('#transcribeBtn').addEventListener('click',transcribeCurrentVideo);
 $('#aiAnalyzeBtn').addEventListener('click',analyzeCurrentVideo);
 async function openItem(index){
  const item=queue[index];if(!item)return;editingIndex=index;
