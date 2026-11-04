@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#111827">
 <meta name="description" content="ReelStudio by Adeel Raja — prepare and schedule your video publishing queue">
 <link rel="manifest" href="manifest.webmanifest">
+<script src="clip-engine.js" defer></script>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>ReelStudio — Adeel Raja</title>
 <style>
@@ -31,7 +32,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
 </aside>
 <main class="main">
   <header class="top">
-    <div><div class="eyebrow">ADEEL RAJA · PUBLISHING WORKSPACE</div><h1 class="h1">ReelStudio</h1><p class="sub">Prepare your videos once. Organise your publishing queue.</p></div>
+    <div><div class="eyebrow">ADEEL RAJA · LOCAL AI CLIP STUDIO</div><h1 class="h1">ReelStudio</h1><p class="sub">Find highlights. Cut clips. Save them on your device.</p></div>
     <div class="actions"><button id="exportBtn">Export queue</button><button class="primary" id="addBtn">＋ Add videos</button></div>
   </header>
   <section class="stats">
@@ -73,7 +74,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
 </main>
 </div>
 <div class="toast" id="toast" role="status"></div>
-<dialog class="dialog" id="itemDialog"><div class="cardhead"><h2 id="dialogTitle">Review video</h2><button type="button" id="closeDialog">Close</button></div><video id="previewVideo" controls playsinline></video><section class="analysis-panel"><strong>Video inspection + AI captioning</strong><div id="videoMeta" class="analysis-meta">Loading video details…</div><div id="keyframes" class="frames"></div><div class="actions" style="margin-top:10px"><button type="button" id="aiAnalyzeBtn" class="primary">Analyse video frames</button><select id="speechLanguage" aria-label="Speech language"><option value="urdu">Urdu speech</option><option value="english">English speech</option><option value="auto">Auto detect</option></select><button type="button" id="transcribeBtn">Transcribe speech</button></div><div id="transcriptWrap" class="field" style="margin-top:10px"><label>Video transcript</label><textarea id="videoTranscript" rows="4" placeholder="Transcribed speech will appear here…"></textarea></div><div id="modelProgress" class="model-progress">Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.</div><div id="aiResult" class="ai-result"></div><div class="analysis-note">AI describes sampled frames, not every moment or spoken words. Check its suggestions before publishing.</div></section><div class="field"><label>Caption</label><textarea id="editCaption"></textarea></div><div class="field"><label>Hashtags</label><input id="editHashtags"></div><div class="field"><label>Scheduled time</label><input id="editWhen" type="datetime-local"></div><div class="field"><label>Publish destinations</label><div id="editTargets" class="targets"></div></div><div class="dialog-actions"><button id="downloadVideo">Download original</button><button class="primary" id="saveItem">Save changes</button></div></dialog>
+<dialog class="dialog" id="itemDialog"><div class="cardhead"><h2 id="dialogTitle">Review video</h2><button type="button" id="closeDialog">Close</button></div><video id="previewVideo" controls playsinline></video><section class="analysis-panel"><strong>Video inspection + AI captioning</strong><div id="videoMeta" class="analysis-meta">Loading video details…</div><div id="keyframes" class="frames"></div><div class="actions" style="margin-top:10px"><button type="button" id="aiAnalyzeBtn" class="primary">Analyse video frames</button><select id="speechLanguage" aria-label="Speech language"><option value="urdu">Urdu speech</option><option value="english">English speech</option><option value="auto">Auto detect</option></select><button type="button" id="transcribeBtn">Transcribe speech</button></div><div id="transcriptWrap" class="field" style="margin-top:10px"><label>Video transcript</label><textarea id="videoTranscript" rows="4" placeholder="Transcribed speech will appear here…"></textarea></div><div class="analysis-panel"><div class="cardhead"><strong>AI clip suggestions</strong><span class="pill">25–90 sec</span></div><div id="clipCandidates" class="queue"><div class="empty">Transcribe speech to discover potential clips.</div></div><div id="clipExportStatus" class="model-progress"></div></div><div id="modelProgress" class="model-progress">Free AI runs in this browser. First use downloads the vision model; no video is uploaded to an AI server.</div><div id="aiResult" class="ai-result"></div><div class="analysis-note">AI describes sampled frames, not every moment or spoken words. Check its suggestions before publishing.</div></section><div class="field"><label>Caption</label><textarea id="editCaption"></textarea></div><div class="field"><label>Hashtags</label><input id="editHashtags"></div><div class="field"><label>Scheduled time</label><input id="editWhen" type="datetime-local"></div><div class="field"><label>Publish destinations</label><div id="editTargets" class="targets"></div></div><div class="dialog-actions"><button id="downloadVideo">Download original</button><button class="primary" id="saveItem">Save changes</button></div></dialog>
 <script>
 const $=s=>document.querySelector(s);
 let selectedFiles=[], queue=JSON.parse(localStorage.getItem('scc_queue')||'[]');
@@ -150,6 +151,43 @@ function inspectVideo(video){
  };
  if(video.readyState>=1)draw();else video.addEventListener('loadedmetadata',draw,{once:true});
 }
+
+let currentClipSuggestions=[];
+function renderClipSuggestions(chunks,duration){
+ const host=$('#clipCandidates');host.innerHTML='';
+ if(!window.ReelStudioClipEngine){host.textContent='Clip engine did not load. Refresh the app.';return}
+ currentClipSuggestions=window.ReelStudioClipEngine.findCandidates(chunks,duration);
+ if(!currentClipSuggestions.length){host.innerHTML='<div class="empty">No clear 25–90 second speech segments found. Try a longer video.</div>';return}
+ currentClipSuggestions.forEach((clip,i)=>{
+  const el=document.createElement('div');el.className='item';
+  const thumb=document.createElement('div');thumb.className='thumb';thumb.textContent=String(i+1);
+  const info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small');
+  title.textContent=clip.text.slice(0,130)+(clip.text.length>130?'…':'');
+  meta.textContent=clip.startLabel+'–'+clip.endLabel+' · '+Math.round(clip.end-clip.start)+' sec · suggested score '+clip.score+'/100';
+  info.append(title,meta);
+  const actions=document.createElement('div');actions.className='item-actions';
+  const preview=document.createElement('button');preview.textContent='Preview';preview.onclick=()=>{const v=$('#previewVideo');v.currentTime=clip.start;v.play();v.ontimeupdate=()=>{if(v.currentTime>=clip.end){v.pause();v.ontimeupdate=null}}};
+  const save=document.createElement('button');save.textContent='Export MP4/WebM';save.onclick=()=>exportSuggestedClip(i);
+  actions.append(preview,save);el.append(thumb,info,actions);host.append(el);
+ });
+}
+async function exportSuggestedClip(index){
+ const clip=currentClipSuggestions[index];if(!clip||editingIndex<0)return;
+ const buttons=[...$('#clipCandidates').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+ const status=$('#clipExportStatus');status.textContent='Preparing local clip export…';
+ try{
+  const asset=await getVideoAsset(queue[editingIndex].assetId);
+  const brand=JSON.parse(localStorage.getItem('scc_brand')||'{}');
+  const blob=await window.ReelStudioClipEngine.exportClip({sourceBlob:asset.blob,start:clip.start,end:clip.end,watermark:brand.name||'ADEEL RAJA',onProgress:p=>status.textContent='Rendering clip locally: '+p+'%'});
+  const ext=blob.type.includes('mp4')?'mp4':'webm';
+  const filename=(queue[editingIndex].name||'reel').replace(/\.[^.]+$/,'')+'_'+clip.startLabel.replace(':','-')+'.'+ext;
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  status.textContent='Clip exported to your Downloads folder. Format: '+ext.toUpperCase()+'.';
+ }catch(e){console.error(e);status.textContent='Export failed: '+(e.message||e)}
+ finally{buttons.forEach(b=>b.disabled=false)}
+}
+
 async function getLocalCaptioner(){
  if(localCaptioner)return localCaptioner;
  if(captionerPromise)return captionerPromise;
@@ -227,11 +265,12 @@ async function transcribeCurrentVideo(){
   const transcriber=await getLocalTranscriber();
   const lang=$('#speechLanguage').value;
   $('#modelProgress').textContent='Transcribing speech locally. Longer videos can take a few minutes…';
-  const opts={chunk_length_s:30,stride_length_s:5,task:'transcribe'};
+  const opts={chunk_length_s:30,stride_length_s:5,task:'transcribe',return_timestamps:'chunk'};
   if(lang!=='auto')opts.language=lang;
   const result=await transcriber(resampled,opts);
   const transcript=(result?.text||'').trim();if(!transcript)throw new Error('No clear speech was detected');
   $('#videoTranscript').value=transcript;
+  renderClipSuggestions(result?.chunks||[],decoded.duration);
   $('#editCaption').value=transcript.length>500?transcript.slice(0,497)+'…':transcript;
   $('#editHashtags').value=makeHashtags(transcript);
   $('#aiResult').textContent='Speech transcript ready. Caption draft uses the spoken words; please correct names, numbers and Urdu spellings before publishing.';
