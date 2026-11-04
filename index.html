@@ -38,7 +38,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
   <section class="stats">
     <div class="stat"><small>Videos in queue</small><strong id="statQueue">0</strong></div>
     <div class="stat"><small>AI clips found</small><strong id="statChannels">—</strong></div>
-    <div class="stat"><small>Needs review</small><strong id="statReady">0</strong></div>
+    <div class="stat"><small>Videos to review</small><strong id="statReady">0</strong></div>
     <div class="stat"><small>Processing</small><strong style="font-size:18px;color:var(--mint)">On device</strong></div>
   </section>
   <div class="layout">
@@ -50,7 +50,7 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:1px solid
       <div class="notice"><strong>Publishing is not connected yet.</strong> Your videos and schedule are saved on this device only. The app does not currently analyse video content to write captions or hashtags. That requires a video-understanding engine; filename-based guesses and generic hashtags are not a substitute. Connect official Facebook, Instagram and YouTube accounts plus a secure publishing backend before real publishing can be enabled.</div>
     </section>
     <aside class="card">
-      <div class="cardhead"><h2>Queue preview</h2><span class="pill" id="queuePill">0 items</span></div><div class="actions" style="margin:0 0 12px"><button id="publishBtn" disabled title="Real publishing is not connected yet">Publish now · Not connected</button></div>
+      <div class="cardhead"><h2>Your source videos</h2><span class="pill" id="queuePill">0 items</span></div>
       <div class="queue" id="queueList"><div class="empty">No videos yet. Select files to start.</div></div>
       <div class="actions" style="margin-top:14px"><button id="resetBtn">Reset queue</button></div>
     </aside>
@@ -312,7 +312,7 @@ $('#saveBrand').onclick=async()=>{const current=JSON.parse(localStorage.getItem(
 async function loadBrandLogo(id){if(brandLogoUrl)URL.revokeObjectURL(brandLogoUrl);brandLogoUrl=null;if(!id){$('#brandPreview').hidden=true;return}try{const asset=await getVideoAsset(id);if(asset?.blob){brandLogoUrl=URL.createObjectURL(asset.blob);$('#brandPreviewImage').src=brandLogoUrl;$('#brandPreview').hidden=false;return}}catch(e){console.warn(e)}$('#brandPreview').hidden=true}
 $('#removeLogo').onclick=()=>{const brand=JSON.parse(localStorage.getItem('scc_brand')||'{}');delete brand.logoAssetId;localStorage.setItem('scc_brand',JSON.stringify(brand));$('#logo').value='';loadBrandLogo(null);toast('Logo removed from brand kit')};
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-view]').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(b.dataset.view==='brand')$('#brandCard').scrollIntoView({behavior:'smooth'});else if(b.dataset.view==='queue')$('#queueList').scrollIntoView({behavior:'smooth'});else if(b.dataset.view==='accounts')toast('Account connection requires backend OAuth setup');else window.scrollTo({top:0,behavior:'smooth'})});
-const d=new Date(Date.now()+3600000);d.setMinutes(Math.ceil(d.getMinutes()/15)*15,0,0);$('#startAt').value=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+
 const brand=JSON.parse(localStorage.getItem('scc_brand')||'{}');$('#brandName').value=brand.name||'Adeel Raja';$('#logoPosition').value=brand.position||'Bottom right';$('#logoSize').value=brand.size||'medium';loadBrandLogo(brand.logoAssetId);render();
 
 // Register the offline app shell when served over HTTPS or localhost.
