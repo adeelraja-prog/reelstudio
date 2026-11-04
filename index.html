@@ -175,9 +175,7 @@ $('#prepareBtn').onclick=async()=>{
  try{
   for(let i=0;i<selectedFiles.length;i++){
    const f=selectedFiles[i],assetId=await saveVideoAsset(f);
-   const name=f.name.replace(/\.[^.]+$/,'');const title=name.replace(/[_-]+/g,' ').trim();
-   const caption=topic?topic+' — '+title:'';
-   queue.push({id:crypto.randomUUID(),assetId,name:f.name,size:f.size,mimeType:f.type,when:new Date(start.getTime()+i*spacing*60000).toISOString(),targets,caption,hashtags:'',keywords:title,status:'Needs review'});
+   queue.push({id:crypto.randomUUID(),assetId,name:f.name,size:f.size,mimeType:f.type,when:new Date(start.getTime()+i*spacing*60000).toISOString(),targets,caption:topic,hashtags:'',keywords:'',status:'Needs review'});
   }
   selectedFiles=[];$('#files').value='';save();toast('Videos saved. Review captions and hashtags before publishing.');
  }catch(error){console.error(error);toast('Could not save video files. Check device storage.')}
